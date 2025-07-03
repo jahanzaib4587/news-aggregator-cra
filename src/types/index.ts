@@ -4,11 +4,14 @@ export interface Article {
   description: string;
   content?: string;
   url: string;
-  urlToImage?: string;
+  urlToImage: string;
   publishedAt: string;
-  source: NewsSource;
+  source: {
+    id: string;
+    name: string;
+  };
   author?: string;
-  category?: string;
+  category: string;
 }
 
 export interface NewsSource {
@@ -29,29 +32,32 @@ export interface NewsApiResponse {
 }
 
 export interface NewsApiArticle {
-  title: string;
-  description: string;
-  content?: string;
-  url: string;
-  urlToImage?: string;
-  publishedAt: string;
   source: {
-    id?: string;
+    id: string | null;
     name: string;
   };
-  author?: string;
+  author: string | null;
+  title: string;
+  description: string;
+  url: string;
+  urlToImage: string | null;
+  publishedAt: string;
+  content: string;
 }
 
 export interface GuardianApiResponse {
   response: {
     status: string;
-    total: number;
     results: GuardianArticle[];
   };
 }
 
 export interface GuardianArticle {
   id: string;
+  type: string;
+  sectionId: string;
+  sectionName: string;
+  webPublicationDate: string;
   webTitle: string;
   webUrl: string;
   apiUrl: string;
@@ -61,43 +67,81 @@ export interface GuardianArticle {
     bodyText?: string;
     byline?: string;
   };
-  webPublicationDate: string;
-  sectionName?: string;
 }
 
 export interface NYTimesApiResponse {
   status: string;
   response: {
     docs: NYTimesArticle[];
+    meta: {
+      hits: number;
+      offset: number;
+      time: number;
+    };
   };
 }
 
 export interface NYTimesArticle {
-  _id: string;
-  headline: {
-    main: string;
-  };
   abstract: string;
   web_url: string;
-  multimedia?: {
-    default?: {
-      url: string;
-      height: number;
-      width: number;
+  snippet: string;
+  lead_paragraph: string;
+  source: string;
+  multimedia: {
+    rank: number;
+    subtype: string;
+    caption: string;
+    credit: string;
+    type: string;
+    url: string;
+    height: number;
+    width: number;
+    legacy: {
+      xlarge: string;
+      xlargewidth: number;
+      xlargeheight: number;
     };
-    thumbnail?: {
-      url: string;
-      height: number;
-      width: number;
-    };
-    caption?: string;
-    credit?: string;
+    subType: string;
+    crop_name: string;
+    [key: string]: any;
+  }[];
+  headline: {
+    main: string;
+    kicker: string;
+    content_kicker: string;
+    print_headline: string;
+    name: string;
+    seo: string;
+    sub: string;
   };
+  keywords: Array<{
+    name: string;
+    value: string;
+    rank: number;
+    major: string;
+  }>;
   pub_date: string;
-  byline?: {
-    original?: string;
+  document_type: string;
+  news_desk: string;
+  section_name: string;
+  byline: {
+    original: string;
+    person: Array<{
+      firstname: string;
+      middlename: string;
+      lastname: string;
+      qualifier: string;
+      title: string;
+      role: string;
+      organization: string;
+      rank: number;
+    }>;
+    organization: string;
   };
-  section_name?: string;
+  type_of_material: string;
+  _id: string;
+  word_count: number;
+  uri: string;
 }
 
 export interface SearchFilters {
@@ -144,10 +188,6 @@ export interface SavedSearch {
   createdAt: string;
 }
 
-export type SortOption = 'relevance' | 'date_desc' | 'date_asc' | 'popularity' | 'trending';
-
 export interface EnhancedSearchFilters extends SearchFilters {
-  sortBy?: SortOption;
-  sentiment?: 'positive' | 'negative' | 'neutral' | 'all';
-  resultCount?: number;
+  // All properties are optional, inheriting from SearchFilters
 } 

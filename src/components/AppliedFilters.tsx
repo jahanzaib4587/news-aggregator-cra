@@ -9,20 +9,16 @@ interface AppliedFiltersProps {
 }
 
 const DEFAULT_FILTERS: EnhancedSearchFilters = {
-  keyword: '',
-  category: '',
-  source: '',
-  dateFrom: '',
-  dateTo: '',
-  sortBy: 'relevance',
-  sentiment: 'all',
-  resultCount: 20
+  keyword: undefined,
+  category: undefined,
+  source: undefined,
+  dateFrom: undefined,
+  dateTo: undefined
 };
 
 const AppliedFilters: React.FC<AppliedFiltersProps> = ({ filters, onRemove, onClearAll }) => {
   const activeFilters = Object.entries(filters).filter(([key, value]) => {
-    const defaultValue = DEFAULT_FILTERS[key as keyof EnhancedSearchFilters];
-    return value !== defaultValue && value !== '' && value !== null && value !== undefined;
+    return value !== undefined && value !== '' && value !== null;
   });
 
   if (activeFilters.length === 0) return null;
@@ -39,17 +35,6 @@ const AppliedFilters: React.FC<AppliedFiltersProps> = ({ filters, onRemove, onCl
         return `From: ${new Date(value).toLocaleDateString()}`;
       case 'dateTo':
         return `To: ${new Date(value).toLocaleDateString()}`;
-      case 'sortBy':
-        const sortLabels: Record<string, string> = {
-          'relevance': 'Most Relevant',
-          'date_desc': 'Newest First',
-          'date_asc': 'Oldest First',
-          'popularity': 'Most Popular',
-          'trending': 'Trending'
-        };
-        return `Sort: ${sortLabels[value] || value}`;
-      case 'sentiment':
-        return value !== 'all' ? `Sentiment: ${value}` : '';
       default:
         return `${key}: ${value}`;
     }

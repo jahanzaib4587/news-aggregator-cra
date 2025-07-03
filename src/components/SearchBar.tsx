@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Calendar, X, Save, History, TrendingUp } from 'lucide-react';
-import { SearchFilters, EnhancedSearchFilters, SortOption } from '../types';
+import { Search, Filter, Calendar, X, Save, History } from 'lucide-react';
+import { SearchFilters, EnhancedSearchFilters } from '../types';
 import { CATEGORIES, SOURCES } from '../config/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import AppliedFilters from './AppliedFilters';
@@ -8,14 +8,6 @@ import AppliedFilters from './AppliedFilters';
 interface SearchBarProps {
   onSearch: (filters: SearchFilters | EnhancedSearchFilters) => void;
 }
-
-const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
-  { value: 'relevance', label: 'Most Relevant' },
-  { value: 'date_desc', label: 'Newest First' },
-  { value: 'date_asc', label: 'Oldest First' },
-  { value: 'popularity', label: 'Most Popular' },
-  { value: 'trending', label: 'Trending Now' }
-];
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [keyword, setKeyword] = useState('');
@@ -27,7 +19,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [isSearching, setIsSearching] = useState(false);
   
   // Enhanced mode states
-  const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
   const [savedSearches, setSavedSearches] = useLocalStorage<Array<{ name: string; filters: any }>>('savedSearches', []);
@@ -37,12 +28,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const buildFilters = (): EnhancedSearchFilters => ({
-    keyword: keyword.trim(),
-    category,
-    source,
-    dateFrom,
-    dateTo,
-    sortBy
+    keyword: keyword.trim() || undefined,
+    category: category || undefined,
+    source: source || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined
   });
 
   const performSearch = (searchFilters: EnhancedSearchFilters) => {
@@ -73,7 +63,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [keyword, category, source, dateFrom, dateTo, sortBy]);
+  }, [keyword, category, source, dateFrom, dateTo]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -108,7 +98,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     if (newFilters.source !== undefined) setSource(newFilters.source);
     if (newFilters.dateFrom !== undefined) setDateFrom(newFilters.dateFrom);
     if (newFilters.dateTo !== undefined) setDateTo(newFilters.dateTo);
-    if (newFilters.sortBy !== undefined) setSortBy(newFilters.sortBy);
   };
 
   const clearFilters = () => {
@@ -118,7 +107,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setSource('');
     setDateFrom('');
     setDateTo('');
-    setSortBy('relevance');
   };
 
   const clearFilter = (filterType: keyof EnhancedSearchFilters) => {
@@ -139,9 +127,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
       case 'dateTo':
         setDateTo('');
         break;
-      case 'sortBy':
-        setSortBy('relevance');
-        break;
     }
   };
 
@@ -160,18 +145,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
     setSource(savedFilters.source || '');
     setDateFrom(savedFilters.dateFrom || '');
     setDateTo(savedFilters.dateTo || '');
-    setSortBy(savedFilters.sortBy || 'relevance');
   };
 
   const activeFilterCount = Object.entries(buildFilters()).filter(([key, value]) => {
-    return value !== '' && value !== undefined && value !== null && 
-           (key !== 'sortBy' || value !== 'relevance');
+    return value !== '' && value !== undefined && value !== null;
   }).length;
 
   return (
     <div className="search-container">
       <div className="search-wrapper">
-        <div className="search-input-container">
+        <div className={`search-input-container ${isSearching ? 'searching' : ''}`}>
           <Search className="search-icon" size={20} />
           <input
             ref={inputRef}
@@ -193,8 +176,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
             </button>
           )}
           
-          {isSearching && <div className="search-loading" />}
-          
           <div className="search-actions">
             <button
               type="button"
@@ -205,26 +186,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
               <Filter size={20} />
               {activeFilterCount > 0 && <span className="filter-count">{activeFilterCount}</span>}
             </button>
-            
-            <div className="sort-select">
-              <TrendingUp size={16} />
-              <select
-                value={sortBy}
-                onChange={(e) => handleFilterChange({ sortBy: e.target.value as SortOption })}
-                className="sort-dropdown"
-                title="Sort results"
-              >
-                {SORT_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
         
-        {isSearching && (
+        {isSearching && !showFilters && (
           <div className="search-status loading">
             Searching articles...
           </div>
@@ -306,8 +271,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
                 />
               </div>
             </div>
-
-
 
             <div className="filter-actions">
               <button

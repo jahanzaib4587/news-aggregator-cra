@@ -18,8 +18,7 @@ class CacheService {
         category: filters.category || '',
         source: filters.source || '',
         dateFrom: filters.dateFrom || '',
-        dateTo: filters.dateTo || '',
-        sortBy: filters.sortBy || 'relevance'
+        dateTo: filters.dateTo || ''
       },
       sources: sources.sort()
     });

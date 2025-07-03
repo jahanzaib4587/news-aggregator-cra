@@ -53,12 +53,8 @@ class ApiService {
       );
     }
     
-    // Sort based on sortBy
-    if (filters.sortBy === 'date_asc') {
-      filtered.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
-    } else {
-      filtered.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    }
+    // Sort by newest first (default)
+    filtered.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
     // Ensure all articles have images (fallback for mock data)
     return filtered.map(article => ({
@@ -103,7 +99,7 @@ class ApiService {
         id: article.source?.id || article.source?.name || 'newsapi',
         name: article.source?.name || 'Unknown Source'
       },
-      author: article.author,
+      author: article.author || undefined,
       category: determineCategory()
     };
   }
@@ -143,10 +139,10 @@ class ApiService {
   }
 
   private normalizeNYTimesArticle(article: NYTimesArticle): Article {
-    // Get image URL from the correct multimedia structure
-    const imageUrl = article.multimedia?.default?.url || 
-                     article.multimedia?.thumbnail?.url || 
-                     this.getDefaultImage();
+    // Get image URL from the multimedia array
+    const imageUrl = article.multimedia && article.multimedia.length > 0 
+                     ? article.multimedia[0].url 
+                     : this.getDefaultImage();
 
     // Map NY Times sections back to our standard categories
     const sectionToCategory: Record<string, string> = {
@@ -188,10 +184,7 @@ class ApiService {
         apiKey: API_CONFIG.newsApi.apiKey,
         pageSize: 50,
         language: 'en',
-        sortBy: filters.sortBy === 'date_desc' ? 'publishedAt' : 
-                filters.sortBy === 'date_asc' ? 'publishedAt' :
-                filters.sortBy === 'popularity' ? 'popularity' :
-                filters.sortBy === 'relevance' ? 'relevancy' : 'publishedAt'
+        sortBy: 'publishedAt' // Default to date sorting
       };
 
       // Use /everything endpoint for keyword searches, /top-headlines for category/general browsing
@@ -265,8 +258,7 @@ class ApiService {
         'api-key': API_CONFIG.guardian.apiKey,
         'page-size': 50,
         'show-fields': 'trailText,thumbnail,bodyText,byline',
-        'order-by': filters.sortBy === 'date_asc' ? 'oldest' :
-                     filters.sortBy === 'relevance' ? 'relevance' : 'newest'
+        'order-by': 'newest' // Default to newest
       };
 
       if (filters.keyword) {
@@ -320,8 +312,7 @@ class ApiService {
     try {
       const params: Record<string, string> = {
         'api-key': API_CONFIG.nyTimes.apiKey,
-        'sort': filters.sortBy === 'date_asc' ? 'oldest' :
-                filters.sortBy === 'relevance' ? 'relevance' : 'newest'
+        'sort': 'newest' // Default to newest
       };
 
       if (filters.keyword) {
@@ -444,14 +435,14 @@ class ApiService {
 
     console.log(`📊 Total articles: ${uniqueArticles.length} (${articles.length} before deduplication)`);
 
-    // Sort by published date (newest first)
+    // Default sorting by newest first
     const sortedArticles = uniqueArticles.sort((a, b) => 
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
     // Cache the results
     cacheService.set(filters, sources, sortedArticles);
-
+    
     return sortedArticles;
   }
 }
