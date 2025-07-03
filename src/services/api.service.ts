@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { 
   Article, 
-  SearchFilters,
   EnhancedSearchFilters,
   NewsApiResponse, 
   GuardianApiResponse, 
@@ -139,10 +138,10 @@ class ApiService {
   }
 
   private normalizeNYTimesArticle(article: NYTimesArticle): Article {
-    // Get image URL from the multimedia array
-    const imageUrl = article.multimedia && article.multimedia.length > 0 
-                     ? article.multimedia[0].url 
-                     : this.getDefaultImage();
+    // Get image URL from the multimedia object
+    const imageUrl = article.multimedia?.default?.url || 
+                     article.multimedia?.thumbnail?.url || 
+                     this.getDefaultImage();
 
     // Map NY Times sections back to our standard categories
     const sectionToCategory: Record<string, string> = {
@@ -198,6 +197,10 @@ class ApiService {
       }
       
       if (filters.category && filters.category !== 'all') {
+        // NewsAPI only supports single category, use first one
+        const categories = filters.category.split(',');
+        const firstCategory = categories[0];
+        
         if (useEverything) {
           // For /everything endpoint, we need to use domains or sources
           // Since category filtering is limited, we'll search in title/description
@@ -211,15 +214,20 @@ class ApiService {
             'general': 'news OR breaking OR world'
           };
           
-          const categoryQuery = categoryKeywords[filters.category];
-          if (categoryQuery) {
+          // If multiple categories, combine their keywords
+          const allCategoryQueries = categories
+            .map(cat => categoryKeywords[cat])
+            .filter(Boolean);
+          
+          if (allCategoryQueries.length > 0) {
+            const combinedQuery = allCategoryQueries.join(' OR ');
             params.q = filters.keyword 
-              ? `(${filters.keyword}) AND (${categoryQuery})`
-              : categoryQuery;
+              ? `(${filters.keyword}) AND (${combinedQuery})`
+              : combinedQuery;
           }
         } else {
-          // For /top-headlines, category parameter works directly
-          params.category = filters.category;
+          // For /top-headlines, category parameter works directly but only accepts single category
+          params.category = firstCategory;
         }
       }
       
@@ -277,8 +285,13 @@ class ApiService {
           'general': 'world'
         };
         
-        const guardianSection = categoryMapping[filters.category] || filters.category;
-        params.section = guardianSection;
+        // Guardian supports multiple sections with pipe separator (section=business|sport)
+        const categories = filters.category.split(',');
+        const guardianSections = categories
+          .map(cat => categoryMapping[cat] || cat)
+          .join('|');
+        
+        params.section = guardianSections;
       }
       
       if (filters.dateFrom) {
@@ -331,11 +344,31 @@ class ApiService {
           'general': 'World'
         };
         
-        const nyTimesSection = categoryMapping[filters.category] || filters.category;
+        // NY Times supports multiple categories with OR syntax in fq parameter
+        const categories = filters.category.split(',');
+        const nyTimesSections = categories.map(cat => categoryMapping[cat] || cat);
+        
+        const sectionQuery = nyTimesSections.length > 1
+          ? `section_name:(${nyTimesSections.map(s => `"${s}"`).join(' OR ')})`
+          : `section_name:"${nyTimesSections[0]}"`;
+        
         // Append to existing fq if we already have one (e.g., from author filter)
         params.fq = params.fq 
-          ? `${params.fq} AND section_name:"${nyTimesSection}"`
-          : `section_name:"${nyTimesSection}"`;
+          ? `${params.fq} AND ${sectionQuery}`
+          : sectionQuery;
+      }
+      
+      if (filters.author && filters.author !== 'all') {
+        // NY Times supports author filtering with byline.person field
+        const authors = filters.author.split(',').map(a => a.trim());
+        const authorQuery = authors.length > 1
+          ? `byline.person:(${authors.map(a => `"${a}"`).join(' OR ')})`
+          : `byline.person:"${authors[0]}"`;
+        
+        // Append to existing fq if we already have one (e.g., from category filter)
+        params.fq = params.fq 
+          ? `${params.fq} AND ${authorQuery}`
+          : authorQuery;
       }
       
       if (filters.dateFrom) {
@@ -373,14 +406,12 @@ class ApiService {
     if (!isInitialLoad) {
       const cachedData = cacheService.get(filters, sources);
       if (cachedData) {
-        console.log('Returning cached data');
         return cachedData;
       }
     }
 
     // Use mock data if no valid API keys are configured
     if (this.shouldUseMockData()) {
-      console.log('Using mock data - no valid API keys configured');
       const mockData = this.filterMockData(filters);
       // Don't cache initial load mock data
       if (!isInitialLoad) {
@@ -388,8 +419,6 @@ class ApiService {
       }
       return mockData;
     }
-    
-    console.log('🔍 Fetching articles with filters:', filters, 'sources:', sources);
 
     const promises: Promise<Article[]>[] = [];
 
@@ -413,16 +442,14 @@ class ApiService {
       );
     }
 
-    console.log(`🚀 Making ${promises.length} API calls in parallel`);
     const results = await Promise.allSettled(promises);
     const articles: Article[] = [];
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
-        console.log(`✅ API call ${index + 1} successful: ${result.value.length} articles`);
         articles.push(...result.value);
       } else {
-        console.error(`❌ API call ${index + 1} failed:`, result.reason);
+        console.error(`API call ${index + 1} failed:`, result.reason);
       }
     });
 
@@ -432,8 +459,6 @@ class ApiService {
         a.title === article.title || a.url === article.url
       )
     );
-
-    console.log(`📊 Total articles: ${uniqueArticles.length} (${articles.length} before deduplication)`);
 
     // Default sorting by newest first
     const sortedArticles = uniqueArticles.sort((a, b) => 

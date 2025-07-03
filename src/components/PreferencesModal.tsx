@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, RotateCcw, Globe, Tag, UserCheck } from 'lucide-react';
 import { UserPreferences } from '../types';
 import { CATEGORIES, SOURCES } from '../config/api';
 import apiService from '../services/api.service';
@@ -87,6 +87,14 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({
     onClose();
   };
 
+  const handleResetAll = () => {
+    setSelectedSources([]);
+    setSelectedCategories([]);
+    setSelectedAuthors([]);
+  };
+
+  const hasAnySelections = selectedSources.length > 0 || selectedCategories.length > 0 || selectedAuthors.length > 0;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -99,7 +107,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({
 
         <div className="modal-body">
           <div className="preferences-section">
-            <h3>News Sources</h3>
+            <h3><Globe size={20} /> News Sources</h3>
             <p className="preferences-description">
               Select your preferred news sources. Leave empty to use all sources.
             </p>
@@ -118,7 +126,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({
           </div>
 
           <div className="preferences-section">
-            <h3>Categories</h3>
+            <h3><Tag size={20} /> Categories</h3>
             <p className="preferences-description">
               Choose the topics you're interested in. Leave empty to see all categories.
             </p>
@@ -137,7 +145,7 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({
           </div>
 
           <div className="preferences-section">
-            <h3>Preferred Authors</h3>
+            <h3><UserCheck size={20} /> Preferred Authors</h3>
             <p className="preferences-description">
               Select authors you want to follow. Leave empty to see all authors.
             </p>
@@ -167,6 +175,15 @@ const PreferencesModal: React.FC<PreferencesModalProps> = ({
         <div className="modal-footer">
           <button onClick={onClose} className="btn-secondary">
             Cancel
+          </button>
+          <button 
+            onClick={handleResetAll} 
+            className="btn-reset"
+            disabled={!hasAnySelections}
+            title="Clear all selections"
+          >
+            <RotateCcw size={18} />
+            Reset All
           </button>
           <button onClick={handleSave} className="btn-primary">
             <Save size={18} />

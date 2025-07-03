@@ -88,23 +88,19 @@ export interface NYTimesArticle {
   lead_paragraph: string;
   source: string;
   multimedia: {
-    rank: number;
-    subtype: string;
     caption: string;
     credit: string;
-    type: string;
-    url: string;
-    height: number;
-    width: number;
-    legacy: {
-      xlarge: string;
-      xlargewidth: number;
-      xlargeheight: number;
+    default: {
+      url: string;
+      height: number;
+      width: number;
     };
-    subType: string;
-    crop_name: string;
-    [key: string]: any;
-  }[];
+    thumbnail: {
+      url: string;
+      height: number;
+      width: number;
+    };
+  } | null;
   headline: {
     main: string;
     kicker: string;
@@ -150,6 +146,7 @@ export interface SearchFilters {
   source?: string;
   dateFrom?: string;
   dateTo?: string;
+  author?: string;
 }
 
 export interface UserPreferences {

@@ -1,4 +1,4 @@
-import { Article, SearchFilters, EnhancedSearchFilters } from '../types';
+import { Article, EnhancedSearchFilters } from '../types';
 
 interface CacheEntry {
   data: Article[];
@@ -16,9 +16,9 @@ class CacheService {
       filters: {
         keyword: filters.keyword || '',
         category: filters.category || '',
-        source: filters.source || '',
         dateFrom: filters.dateFrom || '',
         dateTo: filters.dateTo || ''
+        // Note: source is handled via the sources parameter, not as a filter
       },
       sources: sources.sort()
     });
@@ -71,8 +71,7 @@ class CacheService {
     this.cache.forEach((entry, key) => {
       const cacheKey = JSON.parse(key);
       if (cacheKey.filters.category === filters.category ||
-          cacheKey.filters.keyword === filters.keyword ||
-          cacheKey.filters.source === filters.source) {
+          cacheKey.filters.keyword === filters.keyword) {
         keysToDelete.push(key);
       }
     });

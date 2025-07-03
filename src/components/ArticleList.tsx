@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Article } from '../types';
 import ArticleCard from './ArticleCard';
 import SkeletonCard from './SkeletonCard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, Filter, RefreshCw, TrendingUp, Globe, Calendar } from 'lucide-react';
 
 interface ArticleListProps {
   articles: Article[];
@@ -58,16 +58,58 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   if (error && articles.length === 0) {
     return (
-      <div className="error-container">
-        <p className="error-message">Error: {error}</p>
+      <div className="empty-state-container">
+        <div className="empty-state-content">
+          <div className="empty-state-icon error">
+            <RefreshCw size={48} />
+          </div>
+          <h3 className="empty-state-title">Oops! Something went wrong</h3>
+          <p className="empty-state-description">
+            {error}
+          </p>
+          <button className="empty-state-button" onClick={() => window.location.reload()}>
+            <RefreshCw size={18} />
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   if (articles.length === 0 && !loading) {
     return (
-      <div className="no-articles-container">
-        <p>No articles found. Try adjusting your search criteria.</p>
+      <div className="empty-state-container">
+        <div className="empty-state-content">
+          <div className="empty-state-icon">
+            <Search size={48} />
+          </div>
+          <h3 className="empty-state-title">No articles found</h3>
+          <p className="empty-state-description">
+            We couldn't find any articles matching your criteria. Try adjusting your search or preferences.
+          </p>
+          
+          <div className="empty-state-suggestions">
+            <h4>Try these suggestions:</h4>
+            <div className="suggestion-cards">
+              <div className="suggestion-card">
+                <Filter size={20} />
+                <span>Adjust your filters</span>
+              </div>
+              <div className="suggestion-card">
+                <TrendingUp size={20} />
+                <span>Browse trending topics</span>
+              </div>
+              <div className="suggestion-card">
+                <Globe size={20} />
+                <span>Try different sources</span>
+              </div>
+              <div className="suggestion-card">
+                <Calendar size={20} />
+                <span>Change date range</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
