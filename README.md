@@ -2,6 +2,14 @@
 
 A modern, feature-rich news aggregator web application built with React and TypeScript. The application fetches news from multiple reliable sources and presents them with advanced features like skeleton loading, lazy image loading, infinite scroll, and comprehensive search capabilities.
 
+🔗 **Live Demo**: [https://news-aggregator-cra-54sy.vercel.app/](https://news-aggregator-cra-54sy.vercel.app/)
+
+## 🌟 Live Demo
+
+Experience the application live at: [https://news-aggregator-cra-54sy.vercel.app/](https://news-aggregator-cra-54sy.vercel.app/)
+
+The deployed version showcases all features mentioned below. Note that without valid API keys, the application will display mock data to demonstrate the user interface and functionality.
+
 ## ✨ Key Features
 
 ### 🚀 Advanced Loading & Performance
@@ -59,7 +67,7 @@ A modern, feature-rich news aggregator web application built with React and Type
 
 ## 📋 Prerequisites
 
-Before running the project, ensure you have:
+Before running the project locally, ensure you have:
 
 - **Node.js**: Version 18 or higher
 - **Package Manager**: npm, yarn, or pnpm
@@ -163,9 +171,34 @@ npm run test
 npm run lint
 ```
 
-## 🐳 Docker Deployment
+## 🌐 Deployment
 
-### Using Docker Compose (Recommended)
+### Vercel Deployment
+
+The application is currently deployed on Vercel. To deploy your own instance:
+
+1. **Fork or clone this repository**
+
+2. **Create a Vercel account** at [vercel.com](https://vercel.com)
+
+3. **Import your repository** in Vercel dashboard
+
+4. **Configure environment variables** in Vercel:
+   - Go to Project Settings → Environment Variables
+   - Add the following:
+     ```
+     REACT_APP_NEWSAPI_KEY=your_newsapi_key
+     REACT_APP_GUARDIAN_KEY=your_guardian_key
+     REACT_APP_NYTIMES_KEY=your_nytimes_key
+     ```
+
+5. **Deploy** - Vercel will automatically build and deploy your application
+
+The application will be available at your Vercel URL (e.g., `https://your-project-name.vercel.app`)
+
+### Docker Deployment
+
+#### Using Docker Compose (Recommended)
 ```bash
 # Build and start containers
 docker-compose up -d
@@ -177,7 +210,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### Using Docker Directly
+#### Using Docker Directly
 ```bash
 # Build image
 docker build -t news-aggregator .
@@ -305,6 +338,18 @@ interface Article {
 - **Cumulative Layout Shift**: < 0.1
 - **Time to Interactive**: < 3.5s
 - **Bundle Size**: < 500KB (gzipped)
+- **Lighthouse Score**: 90+ (Performance, Accessibility, Best Practices)
+
+## 🚀 Demo Features
+
+When visiting the [live demo](https://news-aggregator-cra-54sy.vercel.app/), you can explore:
+
+- **Real-time News**: Live news from multiple sources (with valid API keys)
+- **Mock Data Mode**: Beautiful UI demonstration when API keys are not configured
+- **Responsive Design**: Optimized for all device sizes
+- **Search & Filter**: Test the advanced search capabilities
+- **Infinite Scroll**: Smooth loading of additional articles
+- **Preferences**: Customize your news sources and categories
 
 ## 🧪 Testing Strategy
 
@@ -378,7 +423,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **The New York Times** for premium news content
 - **React Team** for the excellent framework
 - **Create React App Team** for the stable build tool
+- **Vercel** for seamless deployment platform
 
 ---
 
 **Built with ❤️ using React, TypeScript, and modern web technologies**
+
+**Live at**: [https://news-aggregator-cra-54sy.vercel.app/](https://news-aggregator-cra-54sy.vercel.app/)
