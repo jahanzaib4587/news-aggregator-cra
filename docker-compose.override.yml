@@ -1,0 +1,44 @@
+# Docker Compose override for local development
+# This file is automatically merged with docker-compose.yml when running docker-compose commands
+# Use this for local development customizations without modifying the main docker-compose.yml
+
+version: '3.8'
+
+services:
+  news-aggregator:
+    # Override environment for local development
+    environment:
+      - NODE_ENV=development
+    # Enable detailed logging for development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Add development labels
+    labels:
+      - "dev.local=true"
+      - "dev.project=news-aggregator"
+
+  news-aggregator-dev:
+    # Enable file watching for hot reloading
+    environment:
+      - WATCHPACK_POLLING=true
+      - FAST_REFRESH=true
+      - BROWSER=none
+    # Development specific volumes for better performance
+    volumes:
+      - ./src:/app/src:cached
+      - ./public:/app/public:cached
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - node_modules:/app/node_modules
+    # Development logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  node_modules: 

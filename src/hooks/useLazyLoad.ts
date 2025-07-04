@@ -35,9 +35,12 @@ export const useLazyLoad = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastRequestRef = useRef<string>('');
   const loadingRef = useRef<boolean>(false);
+  const currentApiPage = useRef<number>(0); // Track NY Times API page
 
   const fetchArticles = useCallback(async (filters: EnhancedSearchFilters, sourcesToUse: string[], reset = false) => {
-    const requestKey = JSON.stringify({ filters, sourcesToUse, reset });
+    const isNYTimesOnly = sourcesToUse.length === 1 && sourcesToUse[0] === 'nytimes';
+    const apiPageToUse = reset ? 0 : currentApiPage.current;
+    const requestKey = JSON.stringify({ filters, sourcesToUse, reset, apiPage: apiPageToUse });
     
     // Only skip if it's the exact same request and we're already loading
     if (loadingRef.current && lastRequestRef.current === requestKey && !reset) {
@@ -57,30 +60,64 @@ export const useLazyLoad = ({
     setError(null);
 
     try {
-      const fetchedArticles = await apiService.fetchArticles(filters, sourcesToUse, abortControllerRef.current.signal);
+      // For NY Times, pass the API page; for others, don't pass page (they fetch all)
+      const fetchedArticles = await apiService.fetchArticles(
+        filters, 
+        sourcesToUse, 
+        abortControllerRef.current.signal,
+        isNYTimesOnly ? apiPageToUse : undefined
+      );
+      
+
       
       if (reset) {
-        allFetchedArticles.current = fetchedArticles;
-        const initialBatch = fetchedArticles.slice(0, itemsPerPage);
-        setArticles(initialBatch);
-        setPage(1);
-        setHasMore(fetchedArticles.length > itemsPerPage);
+        // Reset: set initial articles and reset pagination
+        currentApiPage.current = 0;
+        
+        if (isNYTimesOnly) {
+          // For NY Times, articles are already paginated by the API
+          setArticles(fetchedArticles);
+          setPage(1);
+          setHasMore(fetchedArticles.length >= 10); // NY Times returns 10 per page
+          currentApiPage.current = 1; // Next page to fetch
+        } else {
+          // For other providers, store all articles and paginate client-side
+          allFetchedArticles.current = fetchedArticles;
+          const initialBatch = fetchedArticles.slice(0, itemsPerPage);
+          setArticles(initialBatch);
+          setPage(1);
+          setHasMore(fetchedArticles.length > itemsPerPage);
+        }
+        
+
       } else {
-        // Use the current page from state, but get it fresh
-        setPage(currentPage => {
-          const startIndex = currentPage * itemsPerPage;
-          const endIndex = startIndex + itemsPerPage;
-          const newBatch = allFetchedArticles.current.slice(startIndex, endIndex);
-          
-          if (newBatch.length > 0) {
-            setArticles(prev => [...prev, ...newBatch]);
-            setHasMore(endIndex < allFetchedArticles.current.length);
-            return currentPage + 1;
+        // Load more: different behavior for NY Times vs others
+        if (isNYTimesOnly) {
+          // For NY Times, append new articles from API
+          if (fetchedArticles.length > 0) {
+            setArticles(prev => [...prev, ...fetchedArticles]);
+            setHasMore(fetchedArticles.length >= 10); // Continue if we got full page
+            currentApiPage.current += 1; // Increment for next load
           } else {
             setHasMore(false);
-            return currentPage;
           }
-        });
+        } else {
+          // For other providers, use client-side pagination
+          setPage(currentPage => {
+            const startIndex = currentPage * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const newBatch = allFetchedArticles.current.slice(startIndex, endIndex);
+            
+            if (newBatch.length > 0) {
+              setArticles(prev => [...prev, ...newBatch]);
+              setHasMore(endIndex < allFetchedArticles.current.length);
+              return currentPage + 1;
+            } else {
+              setHasMore(false);
+              return currentPage;
+            }
+          });
+        }
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
@@ -105,6 +142,7 @@ export const useLazyLoad = ({
     
     currentFilters.current = newFilters;
     currentSources.current = newSources;
+    currentApiPage.current = 0; // Reset NY Times API page on refresh
     
     fetchArticles(newFilters, newSources, true);
   }, [fetchArticles]);

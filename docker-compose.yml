@@ -2,9 +2,57 @@ version: '3.8'
 
 services:
   news-aggregator:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: news-aggregator-app
     ports:
       - "3000:80"
     environment:
       - NODE_ENV=production
-    restart: unless-stopped 
+      - REACT_APP_NEWSAPI_KEY=${REACT_APP_NEWSAPI_KEY}
+      - REACT_APP_GUARDIAN_KEY=${REACT_APP_GUARDIAN_KEY}
+      - REACT_APP_NYTIMES_KEY=${REACT_APP_NYTIMES_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - news-aggregator-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.news-aggregator.rule=Host(`localhost`)"
+      - "traefik.http.services.news-aggregator.loadbalancer.server.port=80"
+
+  # Development service (optional)
+  news-aggregator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: news-aggregator-dev
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_NEWSAPI_KEY=${REACT_APP_NEWSAPI_KEY}
+      - REACT_APP_GUARDIAN_KEY=${REACT_APP_GUARDIAN_KEY}
+      - REACT_APP_NYTIMES_KEY=${REACT_APP_NYTIMES_KEY}
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - /app/node_modules
+    networks:
+      - news-aggregator-network
+    profiles:
+      - development
+
+networks:
+  news-aggregator-network:
+    driver: bridge 

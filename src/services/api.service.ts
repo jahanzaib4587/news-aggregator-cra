@@ -1,32 +1,53 @@
-import axios from 'axios';
-import type { 
-  Article, 
-  EnhancedSearchFilters,
-  NewsApiResponse, 
-  GuardianApiResponse, 
-  NYTimesApiResponse,
-  GuardianArticle,
-  NYTimesArticle,
-  NewsApiArticle 
-} from '../types';
+import type { Article, EnhancedSearchFilters } from '../types';
 import { API_CONFIG } from '../config/api';
 import { mockArticles } from '../data/mockData';
 import cacheService from './cache.service';
+import { ApiProvider } from './apiProviders/apiProvider.interface';
+import { NewsApiProvider } from './apiProviders/newsApi.provider';
+import { GuardianApiProvider } from './apiProviders/guardian.provider';
+import { NYTimesApiProvider } from './apiProviders/nyTimes.provider';
 
 class ApiService {
-  private isValidApiKey(key: string): boolean {
-    return Boolean(key) && key !== 'demo_key_newsapi' && key !== 'demo_key_guardian' && key !== 'demo_key_nytimes';
+  private providers: Map<string, ApiProvider> = new Map();
+
+  constructor() {
+    this.initializeProviders();
   }
 
-  private getDefaultImage(): string {
-    // Return a nice default image for articles without images
-    return 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=300&fit=crop&crop=entropy&auto=format&q=80';
+  private initializeProviders(): void {
+    const newsApiProvider = new NewsApiProvider({
+      baseUrl: API_CONFIG.newsApi.baseUrl,
+      apiKey: API_CONFIG.newsApi.apiKey,
+      endpoints: API_CONFIG.newsApi.endpoints
+    });
+
+    const guardianProvider = new GuardianApiProvider({
+      baseUrl: API_CONFIG.guardian.baseUrl,
+      apiKey: API_CONFIG.guardian.apiKey,
+      endpoints: API_CONFIG.guardian.endpoints
+    });
+
+    const nyTimesProvider = new NYTimesApiProvider({
+      baseUrl: API_CONFIG.nyTimes.baseUrl,
+      apiKey: API_CONFIG.nyTimes.apiKey,
+      endpoints: API_CONFIG.nyTimes.endpoints
+    });
+
+    this.providers.set('newsapi', newsApiProvider);
+    this.providers.set('guardian', guardianProvider);
+    this.providers.set('nytimes', nyTimesProvider);
+  }
+
+  private getProvider(sourceId: string): ApiProvider | undefined {
+    return this.providers.get(sourceId);
+  }
+
+  private hasConfiguredProviders(): boolean {
+    return Array.from(this.providers.values()).some(provider => provider.isConfigured());
   }
 
   private shouldUseMockData(): boolean {
-    return !this.isValidApiKey(API_CONFIG.newsApi.apiKey) && 
-           !this.isValidApiKey(API_CONFIG.guardian.apiKey) && 
-           !this.isValidApiKey(API_CONFIG.nyTimes.apiKey);
+    return !this.hasConfiguredProviders();
   }
 
   private filterMockData(filters: EnhancedSearchFilters): Article[] {
@@ -55,355 +76,18 @@ class ApiService {
     // Sort by newest first (default)
     filtered.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-    // Ensure all articles have images (fallback for mock data)
+    // Ensure all articles have images (fallback for mock data)  
+    const defaultImage = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=300&fit=crop&crop=entropy&auto=format&q=80';
     return filtered.map(article => ({
       ...article,
-      urlToImage: article.urlToImage || this.getDefaultImage()
+      urlToImage: article.urlToImage || defaultImage
     }));
   }
 
-  private normalizeNewsApiArticle(article: NewsApiArticle): Article {
-    // Try to determine category from source or content
-    const determineCategory = (): string => {
-      const title = (article.title || '').toLowerCase();
-      const description = (article.description || '').toLowerCase();
-      const content = title + ' ' + description;
-
-      if (content.includes('business') || content.includes('finance') || content.includes('market') || content.includes('economy')) {
-        return 'business';
-      } else if (content.includes('tech') || content.includes('digital') || content.includes('software') || content.includes('ai')) {
-        return 'technology';
-      } else if (content.includes('science') || content.includes('research') || content.includes('study')) {
-        return 'science';
-      } else if (content.includes('health') || content.includes('medical') || content.includes('medicine')) {
-        return 'health';
-      } else if (content.includes('sport') || content.includes('football') || content.includes('basketball')) {
-        return 'sports';
-      } else if (content.includes('entertainment') || content.includes('movie') || content.includes('music')) {
-        return 'entertainment';
-      }
-      
-      return 'general';
-    };
-
-    return {
-      id: article.url || `newsapi-${Date.now()}-${Math.random()}`,
-      title: article.title || 'No Title Available',
-      description: article.description || 'No description available',
-      content: article.content,
-      url: article.url || '#',
-      urlToImage: article.urlToImage || this.getDefaultImage(),
-      publishedAt: article.publishedAt || new Date().toISOString(),
-      source: {
-        id: article.source?.id || article.source?.name || 'newsapi',
-        name: article.source?.name || 'Unknown Source'
-      },
-      author: article.author || undefined,
-      category: determineCategory()
-    };
-  }
-
-  private normalizeGuardianArticle(article: GuardianArticle): Article {
-    // Map Guardian sections back to our standard categories
-    const sectionToCategory: Record<string, string> = {
-      'business': 'business',
-      'technology': 'technology', 
-      'science': 'science',
-      'society': 'health',
-      'sport': 'sports',
-      'culture': 'entertainment',
-      'world': 'general',
-      'uk-news': 'general',
-      'us-news': 'general'
-    };
-
-    const sectionName = article.sectionName?.toLowerCase() || 'general';
-    const category = sectionToCategory[sectionName] || 'general';
-
-    return {
-      id: article.id || `guardian-${Date.now()}-${Math.random()}`,
-      title: article.webTitle || 'No Title Available',
-      description: article.fields?.trailText || 'No description available',
-      content: article.fields?.bodyText || undefined,
-      url: article.webUrl || '#',
-      urlToImage: article.fields?.thumbnail || this.getDefaultImage(),
-      publishedAt: article.webPublicationDate || new Date().toISOString(),
-      source: {
-        id: 'guardian',
-        name: 'The Guardian'
-      },
-      author: article.fields?.byline || undefined,
-      category: category
-    };
-  }
-
-  private normalizeNYTimesArticle(article: NYTimesArticle): Article {
-    // Get image URL from the multimedia object
-    const imageUrl = article.multimedia?.default?.url || 
-                     article.multimedia?.thumbnail?.url || 
-                     this.getDefaultImage();
-
-    // Map NY Times sections back to our standard categories
-    const sectionToCategory: Record<string, string> = {
-      'business': 'business',
-      'technology': 'technology',
-      'science': 'science', 
-      'health': 'health',
-      'sports': 'sports',
-      'arts': 'entertainment',
-      'movies': 'entertainment',
-      'theater': 'entertainment',
-      'world': 'general',
-      'us': 'general',
-      'politics': 'general'
-    };
-
-    const sectionName = article.section_name?.toLowerCase() || 'general';
-    const category = sectionToCategory[sectionName] || 'general';
-
-    return {
-      id: article._id || `nytimes-${Date.now()}-${Math.random()}`,
-      title: article.headline?.main || 'No Title Available', 
-      description: article.abstract || 'No description available',
-      url: article.web_url || '#',
-      urlToImage: imageUrl,
-      publishedAt: article.pub_date || new Date().toISOString(),
-      source: {
-        id: 'nytimes',
-        name: 'The New York Times'
-      },
-      author: article.byline?.original?.replace('By ', '') || undefined,
-      category: category
-    };
-  }
-
-  async fetchFromNewsApi(filters: EnhancedSearchFilters, signal?: AbortSignal): Promise<Article[]> {
-    try {
-      const params: Record<string, string | number> = {
-        apiKey: API_CONFIG.newsApi.apiKey,
-        pageSize: 50,
-        language: 'en',
-        sortBy: 'publishedAt' // Default to date sorting
-      };
-
-      // Use /everything endpoint for keyword searches, /top-headlines for category/general browsing
-      const useEverything = Boolean(filters.keyword) || Boolean(filters.dateFrom) || Boolean(filters.dateTo);
-      const endpoint = useEverything 
-        ? API_CONFIG.newsApi.endpoints.everything 
-        : API_CONFIG.newsApi.endpoints.topHeadlines;
-
-      if (filters.keyword) {
-        params.q = filters.keyword;
-      }
-      
-      if (filters.category && filters.category !== 'all') {
-        // NewsAPI only supports single category, use first one
-        const categories = filters.category.split(',');
-        const firstCategory = categories[0];
-        
-        if (useEverything) {
-          // For /everything endpoint, we need to use domains or sources
-          // Since category filtering is limited, we'll search in title/description
-          const categoryKeywords: Record<string, string> = {
-            'business': 'business OR finance OR economy OR market',
-            'technology': 'technology OR tech OR digital OR software',
-            'science': 'science OR research OR study OR discovery',
-            'health': 'health OR medical OR medicine OR healthcare',
-            'sports': 'sports OR football OR basketball OR soccer',
-            'entertainment': 'entertainment OR movie OR music OR celebrity',
-            'general': 'news OR breaking OR world'
-          };
-          
-          // If multiple categories, combine their keywords
-          const allCategoryQueries = categories
-            .map(cat => categoryKeywords[cat])
-            .filter(Boolean);
-          
-          if (allCategoryQueries.length > 0) {
-            const combinedQuery = allCategoryQueries.join(' OR ');
-            params.q = filters.keyword 
-              ? `(${filters.keyword}) AND (${combinedQuery})`
-              : combinedQuery;
-          }
-        } else {
-          // For /top-headlines, category parameter works directly but only accepts single category
-          params.category = firstCategory;
-        }
-      }
-      
-      if (filters.dateFrom) {
-        params.from = filters.dateFrom;
-      }
-      
-      if (filters.dateTo) {
-        params.to = filters.dateTo;
-      }
-
-      const response = await axios.get<NewsApiResponse>(
-        `${API_CONFIG.newsApi.baseUrl}${endpoint}`,
-        { params, signal }
-      );
-
-      if (response.data.articles) {
-        return response.data.articles
-          .filter(article => article.title && article.title !== '[Removed]')
-          .map((article) => this.normalizeNewsApiArticle(article));
-      }
-      
-      return [];
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      console.error('NewsAPI Error:', error);
-      return [];
-    }
-  }
-
-  async fetchFromGuardian(filters: EnhancedSearchFilters, signal?: AbortSignal): Promise<Article[]> {
-    try {
-      const params: Record<string, string | number> = {
-        'api-key': API_CONFIG.guardian.apiKey,
-        'page-size': 50,
-        'show-fields': 'trailText,thumbnail,bodyText,byline',
-        'order-by': 'newest' // Default to newest
-      };
-
-      if (filters.keyword) {
-        params.q = filters.keyword;
-      }
-      
-      if (filters.category && filters.category !== 'all') {
-        // Map our standard categories to Guardian sections
-        const categoryMapping: Record<string, string> = {
-          'business': 'business',
-          'technology': 'technology',
-          'science': 'science',
-          'health': 'society',
-          'sports': 'sport',
-          'entertainment': 'culture',
-          'general': 'world'
-        };
-        
-        // Guardian supports multiple sections with pipe separator (section=business|sport)
-        const categories = filters.category.split(',');
-        const guardianSections = categories
-          .map(cat => categoryMapping[cat] || cat)
-          .join('|');
-        
-        params.section = guardianSections;
-      }
-      
-      if (filters.dateFrom) {
-        params['from-date'] = filters.dateFrom;
-      }
-      
-      if (filters.dateTo) {
-        params['to-date'] = filters.dateTo;
-      }
-
-      const response = await axios.get<GuardianApiResponse>(
-        `${API_CONFIG.guardian.baseUrl}${API_CONFIG.guardian.endpoints.search}`,
-        { params, signal }
-      );
-
-      if (response.data.response?.results) {
-        return response.data.response.results.map(article => this.normalizeGuardianArticle(article));
-      }
-      
-      return [];
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      console.error('Guardian API Error:', error);
-      return [];
-    }
-  }
-
-  async fetchFromNYTimes(filters: EnhancedSearchFilters, signal?: AbortSignal): Promise<Article[]> {
-    try {
-      const params: Record<string, string> = {
-        'api-key': API_CONFIG.nyTimes.apiKey,
-        'sort': 'newest' // Default to newest
-      };
-
-      if (filters.keyword) {
-        params.q = filters.keyword;
-      }
-      
-      if (filters.category && filters.category !== 'all') {
-        // Map our standard categories to NY Times sections
-        const categoryMapping: Record<string, string> = {
-          'business': 'Business',
-          'technology': 'Technology',
-          'science': 'Science',
-          'health': 'Health',
-          'sports': 'Sports',
-          'entertainment': 'Arts',
-          'general': 'World'
-        };
-        
-        // NY Times supports multiple categories with OR syntax in fq parameter
-        const categories = filters.category.split(',');
-        const nyTimesSections = categories.map(cat => categoryMapping[cat] || cat);
-        
-        const sectionQuery = nyTimesSections.length > 1
-          ? `section_name:(${nyTimesSections.map(s => `"${s}"`).join(' OR ')})`
-          : `section_name:"${nyTimesSections[0]}"`;
-        
-        // Append to existing fq if we already have one (e.g., from author filter)
-        params.fq = params.fq 
-          ? `${params.fq} AND ${sectionQuery}`
-          : sectionQuery;
-      }
-      
-      if (filters.author && filters.author !== 'all') {
-        // NY Times supports author filtering with byline.person field
-        const authors = filters.author.split(',').map(a => a.trim());
-        const authorQuery = authors.length > 1
-          ? `byline.person:(${authors.map(a => `"${a}"`).join(' OR ')})`
-          : `byline.person:"${authors[0]}"`;
-        
-        // Append to existing fq if we already have one (e.g., from category filter)
-        params.fq = params.fq 
-          ? `${params.fq} AND ${authorQuery}`
-          : authorQuery;
-      }
-      
-      if (filters.dateFrom) {
-        // NY Times expects YYYYMMDD format
-        params.begin_date = filters.dateFrom.replace(/-/g, '');
-      }
-      
-      if (filters.dateTo) {
-        // NY Times expects YYYYMMDD format  
-        params.end_date = filters.dateTo.replace(/-/g, '');
-      }
-
-      const response = await axios.get<NYTimesApiResponse>(
-        `${API_CONFIG.nyTimes.baseUrl}${API_CONFIG.nyTimes.endpoints.search}`,
-        { params, signal }
-      );
-
-      if (response.data.response?.docs) {
-        return response.data.response.docs.map(article => this.normalizeNYTimesArticle(article));
-      }
-      
-      return [];
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      console.error('NY Times API Error:', error);
-      return [];
-    }
-  }
-
-  async fetchArticles(filters: EnhancedSearchFilters, sources: string[], signal?: AbortSignal): Promise<Article[]> {
-    // Check cache first - but not for empty filters (initial load)
+  async fetchArticles(filters: EnhancedSearchFilters, sources: string[], signal?: AbortSignal, page?: number): Promise<Article[]> {
+    // Check cache first - but not for empty filters (initial load) or when page is specified
     const isInitialLoad = !filters.keyword && !filters.category && !filters.source && !filters.dateFrom && !filters.dateTo;
-    if (!isInitialLoad) {
+    if (!isInitialLoad && !page) {
       const cachedData = cacheService.get(filters, sources);
       if (cachedData) {
         return cachedData;
@@ -421,25 +105,20 @@ class ApiService {
     }
 
     const promises: Promise<Article[]>[] = [];
+    const sourcesToUse = sources.length > 0 ? sources : ['newsapi', 'guardian', 'nytimes'];
 
-    // Fetch from specified sources
-    if (sources.includes('newsapi')) {
-      promises.push(this.fetchFromNewsApi(filters, signal));
-    }
-    if (sources.includes('guardian')) {
-      promises.push(this.fetchFromGuardian(filters, signal));
-    }
-    if (sources.includes('nytimes')) {
-      promises.push(this.fetchFromNYTimes(filters, signal));
+    // Fetch from specified sources using strategy pattern
+    for (const sourceId of sourcesToUse) {
+      const provider = this.getProvider(sourceId);
+      if (provider && provider.isConfigured()) {
+        // Pass page parameter to provider (only NY Times will use it)
+        promises.push(provider.fetchArticles(filters, signal, page));
+      }
     }
 
-    // If no sources specified, fetch from all
-    if (sources.length === 0) {
-      promises.push(
-        this.fetchFromNewsApi(filters, signal),
-        this.fetchFromGuardian(filters, signal),
-        this.fetchFromNYTimes(filters, signal)
-      );
+    if (promises.length === 0) {
+      console.warn('No configured API providers available');
+      return [];
     }
 
     const results = await Promise.allSettled(promises);
@@ -465,10 +144,34 @@ class ApiService {
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
-    // Cache the results
-    cacheService.set(filters, sources, sortedArticles);
+    // Cache the results only if not paginated
+    if (!page) {
+      cacheService.set(filters, sources, sortedArticles);
+    }
     
     return sortedArticles;
+  }
+
+  // Utility methods for accessing provider information
+  getAvailableProviders(): string[] {
+    return Array.from(this.providers.keys());
+  }
+
+  getConfiguredProviders(): string[] {
+    return Array.from(this.providers.entries())
+      .filter(([, provider]) => provider.isConfigured())
+      .map(([id]) => id);
+  }
+
+  getProviderInfo(sourceId: string): { name: string; id: string; configured: boolean } | null {
+    const provider = this.getProvider(sourceId);
+    if (!provider) return null;
+    
+    return {
+      name: provider.name,
+      id: provider.id,
+      configured: provider.isConfigured()
+    };
   }
 }
 

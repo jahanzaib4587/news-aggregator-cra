@@ -196,10 +196,16 @@ The application is currently deployed on Vercel. To deploy your own instance:
 
 The application will be available at your Vercel URL (e.g., `https://your-project-name.vercel.app`)
 
-### Docker Deployment
+### Docker Deployment 🐳
 
-#### Using Docker Compose (Recommended)
+The application is fully containerized with Docker for easy deployment and development.
+
+#### Quick Start with Docker Compose (Recommended)
 ```bash
+# Copy environment file
+cp env.example .env
+# Edit .env with your API keys
+
 # Build and start containers
 docker-compose up -d
 
@@ -210,16 +216,31 @@ docker-compose logs -f
 docker-compose down
 ```
 
-#### Using Docker Directly
+#### Development Mode with Hot Reloading
 ```bash
-# Build image
-docker build -t news-aggregator .
+# Start development environment
+docker-compose --profile development up -d news-aggregator-dev
 
-# Run container
-docker run -p 3000:80 --env-file .env news-aggregator
+# Access at http://localhost:3001
 ```
 
-The application will be available at `http://localhost:3000`
+#### Production Features
+- **Multi-stage builds** for optimized image size
+- **Nginx serving** with security headers and compression
+- **Health checks** for container monitoring
+- **Non-root execution** for enhanced security
+- **Static asset caching** for better performance
+
+#### Development Features
+- **Hot reloading** with volume mounting
+- **Real-time code changes** without rebuilds
+- **Separate development container** on port 3001
+
+**📖 For comprehensive Docker documentation, see [DOCKER.md](./DOCKER.md)**
+
+The application will be available at:
+- **Production**: `http://localhost:3000`
+- **Development**: `http://localhost:3001`
 
 ## 📁 Project Structure
 

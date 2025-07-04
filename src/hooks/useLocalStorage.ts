@@ -1,39 +1,31 @@
 import { useState, useEffect } from 'react';
+import { StorageService } from '../services/storage.interface';
+import localStorageService from '../services/localStorage.service';
 
-export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+export function useLocalStorage<T>(key: string, initialValue: T, storageService: StorageService = localStorageService): [T, (value: T) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
+    const item = storageService.getItem<T>(key);
+    return item !== null ? item : initialValue;
   });
 
   const setValue = (value: T) => {
-    try {
-      setStoredValue(value);
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
+    setStoredValue(value);
+    storageService.setItem(key, value);
   };
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key && e.newValue) {
-        try {
-          setStoredValue(JSON.parse(e.newValue));
-        } catch (error) {
-          console.error(`Error parsing localStorage value for key "${key}":`, error);
+        const newValue = storageService.getItem<T>(key);
+        if (newValue !== null) {
+          setStoredValue(newValue);
         }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [key]);
+  }, [key, storageService]);
 
   return [storedValue, setValue];
 } 
